@@ -186,7 +186,7 @@ git checkout regex_gpt2_preprocess
 make
 python3 -m pip install -r requirements.txt
 # generate GGUF model
-python convert-hf-to-gguf.py <MODEL_PATH> --outfile <GGUF_PATH> --model-name deepseekllm
+python convert-hf-to-gguf.py <MODEL_PATH> --outfile <GGUF_PATH> --model-name Jumbollm
 # use q4_0 quantization as an example
 ./quantize <GGUF_PATH> <OUTPUT_PATH> q4_0
 ./main -m <OUTPUT_PATH> -n 128 -p <PROMPT>
