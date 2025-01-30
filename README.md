@@ -52,13 +52,30 @@ Note: +MC represents the addition of 20 million Chinese multiple-choice question
 
 # Data
 Our primary goal is to holistically enhance the dataset's richness and variety. To achieve this, we've implemented multiple methods and established a distributed, frequent-checkpointing batch processing system, named "cc_cleaner", to bolster our data pipeline.
+
 Our minimal viable solution departs from RefinedWeb + CCNet. We greatly appreciate their selfless dedication to the research of AGI.
+
 We have also significantly incorporated deterministic randomization into our data pipeline. This approach enables us to continuously enhance our data throughout the lengthy and unpredictable training process.
--Data Composition: Our training data comprises a diverse mix of Internet text, math, code, books, and self-collected data respecting robots.txt. In addition to the diverse content, we place a high priority on personal privacy and copyright protection. All content containing personal information or subject to copyright restrictions has been removed from our dataset.
--Dataset Pruning: Our system employs heuristic rules and models to refine our training data. Our filtering process removes low-quality web data while preserving precious low-resource knowledge. It aims to improve overall corpus quality and remove harmful or toxic content.
--Deduplication: Our advanced deduplication system, using MinhashLSH, strictly removes duplicates both at document and string levels. This rigorous deduplication process ensures exceptional data uniqueness and integrity, especially crucial in large-scale datasets.
+
+    -Data Composition: Our training data comprises a diverse mix of Internet text, math, code, books, and self-collected data respecting robots.txt. In addition to the diverse content, we place a high priority on personal privacy and copyright protection. All content containing personal information or subject to 
+    copyright restrictions has been removed from our dataset.
+
+    -Dataset Pruning: Our system employs heuristic rules and models to refine our training data. Our filtering process removes low-quality web data while preserving precious low-resource knowledge. It aims to improve overall corpus quality and remove harmful or toxic content.
+    
+    -Deduplication: Our advanced deduplication system, using MinhashLSH, strictly removes duplicates both at document and string levels. This rigorous deduplication process ensures exceptional data uniqueness and integrity, especially crucial in large-scale datasets.
+
 # Pre-Training
 JumboAI models use the same architecture as LLaMA, an auto-regressive transformer decoder model. The 7B model uses Multi-Head attention (MHA) while the 67B model uses Grouped-Query Attention (GQA).
+
 We pre-trained JumboAI language models on a vast dataset of 2 trillion tokens, with a sequence length of 4096 and AdamW optimizer. The 7B model's training involved a batch size of 2304 and a learning rate of 4.2e-4 and the 67B model was trained with a batch size of 4608 and a learning rate of 3.2e-4. We employ a multi-step learning rate schedule in our training process. The learning rate begins with 2000 warmup steps, and then it is stepped to 31.6% of the maximum at 1.6 trillion tokens and 10% of the maximum at 1.8 trillion tokens.
+
 We release the training loss curve and several benchmark metrics curves, as detailed below.
 
+![image](https://github.com/user-attachments/assets/f8e8651e-33d8-468a-a42e-f89d3e75d55e)
+![image](https://github.com/user-attachments/assets/327463cd-d59b-49e5-8a2a-7c9225c2df5d)
+
+
+# 4. Quick Start
+
+Installation
+On the basis of Python >= 3.8 environment, install the necessary dependencies by running the following command:
