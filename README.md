@@ -77,5 +77,163 @@ We release the training loss curve and several benchmark metrics curves, as deta
 
 # 4. Quick Start
 
-Installation
+###Installation
 On the basis of Python >= 3.8 environment, install the necessary dependencies by running the following command:
+```shell
+pip install -r requirements.txt
+```
+
+### Inference
+
+Here are some examples of utilizing our models.
+
+**Text Completion**
+
+You can directly employ [Huggingface's Transformers](https://github.com/huggingface/transformers) for model inference:
+
+```python
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
+
+model_name = "JumboAI-ai/JumboAI-llm-67b-base"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, device_map="auto")
+model.generation_config = GenerationConfig.from_pretrained(model_name)
+model.generation_config.pad_token_id = model.generation_config.eos_token_id
+
+text = "An attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors. The output is"
+inputs = tokenizer(text, return_tensors="pt")
+outputs = model.generate(**inputs.to(model.device), max_new_tokens=100)
+
+result = tokenizer.decode(outputs[0], skip_special_tokens=True)
+print(result)
+```
+
+**Chat Completion**
+
+```python
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
+
+model_name = "JumboAI-ai/JumboAI-llm-67b-chat"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, device_map="auto")
+model.generation_config = GenerationConfig.from_pretrained(model_name)
+model.generation_config.pad_token_id = model.generation_config.eos_token_id
+
+messages = [
+    {"role": "user", "content": "Who are you?"}
+]
+input_tensor = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
+outputs = model.generate(input_tensor.to(model.device), max_new_tokens=100)
+
+result = tokenizer.decode(outputs[0][input_tensor.shape[1]:], skip_special_tokens=True)
+print(result)
+```
+
+Avoiding the use of the provided function `apply_chat_template`, you can also interact with our model following the sample template. Note that `messages` should be replaced by your input.
+
+```
+User: {messages[0]['content']}
+
+Assistant: {messages[1]['content']}<｜end▁of▁sentence｜>User: {messages[2]['content']}
+
+Assistant:
+```
+
+**Note:** By default (`add_special_tokens=True`), our tokenizer automatically adds a `bos_token` (`<｜begin▁of▁sentence｜>`) before the input text. Additionally, since the system prompt is not compatible with this version of our models, we DO NOT RECOMMEND including the system prompt in your input.
+
+**Inference with vLLM**
+
+You can also employ [vLLM](https://github.com/vllm-project/vllm) for high-throughput inference.
+
+```python
+from vllm import LLM, SamplingParams
+
+tp_size = 4 # Tensor Parallelism
+sampling_params = SamplingParams(temperature=0.7, top_p=0.9, max_tokens=100)
+model_name = "JumboAI-ai/JumboAI-llm-67b-base"
+llm = LLM(model=model_name, trust_remote_code=True, gpu_memory_utilization=0.9, tensor_parallel_size=tp_size)
+
+prompts = [
+    "If everyone in a country loves one another,",
+    "The research should also focus on the technologies",
+    "To determine if the label is correct, we need to"
+]
+outputs = llm.generate(prompts, sampling_params)
+
+generated_text = [output.outputs[0].text for output in outputs]
+print(generated_text)
+```
+
+## 5. FAQ
+
+### Could You Provide the tokenizer.model File for Model Quantization?
+
+JumboAI LLM utilizes the [HuggingFace Tokenizer](https://huggingface.co/docs/tokenizers/index) to implement the Byte-level BPE algorithm, with specially designed pre-tokenizers to ensure optimal performance. Currently, there is no direct way to convert the tokenizer into a SentencePiece tokenizer. We are contributing to the open-source quantization methods facilitate the usage of HuggingFace Tokenizer.
+
+#### GGUF(llama.cpp)
+
+We have submitted a [PR](https://github.com/ggerganov/llama.cpp/pull/4070) to the popular quantization repository [llama.cpp](https://github.com/ggerganov/llama.cpp) to fully support all HuggingFace pre-tokenizers, including ours.
+
+While waiting for the PR to be merged, you can generate your GGUF model using the following steps:
+
+```bash
+git clone https://github.com/DOGEwbx/llama.cpp.git
+cd llama.cpp
+git checkout regex_gpt2_preprocess
+# set up the environment according to README
+make
+python3 -m pip install -r requirements.txt
+# generate GGUF model
+python convert-hf-to-gguf.py <MODEL_PATH> --outfile <GGUF_PATH> --model-name deepseekllm
+# use q4_0 quantization as an example
+./quantize <GGUF_PATH> <OUTPUT_PATH> q4_0
+./main -m <OUTPUT_PATH> -n 128 -p <PROMPT>
+```
+#### GPTQ(exllamav2)
+
+`UPDATE:`[exllamav2](https://github.com/turboderp/exllamav2) has been able to support HuggingFace Tokenizer. Please pull the latest version and try out.
+
+### GPU Memory Usage
+
+We profile the peak memory usage of inference for 7B and 67B models at different batch size and sequence length settings.
+
+For JumboAI LLM 7B, we utilize **1 NVIDIA A100-PCIE-40GB GPU** for inference.
+
+<table><thead><tr><th rowspan="2">Batch Size</th><th colspan="5">Sequence Length</th></tr><tr><th>256</th><th>512</th><th>1024</th><th>2048</th><th>4096</th></tr></thead><tbody><tr><td>1</td><td>13.29 GB</td><td>13.63 GB</td><td>14.47 GB</td><td>16.37 GB</td><td>21.25 GB</td></tr><tr><td>2</td><td>13.63 GB</td><td>14.39 GB</td><td>15.98 GB</td><td>19.82 GB</td><td>29.59 GB</td></tr><tr><td>4</td><td>14.47 GB</td><td>15.82 GB</td><td>19.04 GB</td><td>26.65 GB</td><td>OOM</td></tr><tr><td>8</td><td>15.99 GB</td><td>18.71 GB</td><td>25.14 GB</td><td>35.19 GB</td><td>OOM</td></tr><tr><td>16</td><td>19.06 GB</td><td>24.52 GB</td><td>37.28 GB</td><td>OOM</td><td>OOM</td></tr></tbody></table>
+
+For JumboAI LLM 67B, we utilize **8 NVIDIA A100-PCIE-40GB GPUs** for inference.
+
+<table><thead><tr><th rowspan="2">Batch Size</th><th colspan="5">Sequence Length</th></tr><tr><th>256</th><th>512</th><th>1024</th><th>2048</th><th>4096</th></tr></thead><tbody><tr><td>1</td><td>16.92 GB</td><td>17.11 GB</td><td>17.66 GB</td><td>20.01 GB</td><td>33.23 GB</td></tr><tr><td>2</td><td>17.04 GB</td><td>17.28 GB</td><td>18.55 GB</td><td>25.27 GB</td><td>OOM</td></tr><tr><td>4</td><td>17.20 GB</td><td>17.80 GB</td><td>21.28 GB</td><td>33.71 GB</td><td>OOM</td></tr><tr><td>8</td><td>17.59 GB</td><td>19.25 GB</td><td>25.69 GB</td><td>OOM</td><td>OOM</td></tr><tr><td>16</td><td>18.17 GB</td><td>21.69 GB</td><td>34.54 GB</td><td>OOM</td><td>OOM</td></tr></tbody></table>
+
+## 6. Limitation
+
+While JumboAI LLMs have demonstrated impressive capabilities, they are not without their limitations. Here are some potential drawbacks of such models:
+
+1. Over-reliance on training data: These models are trained on vast amounts of text data, which can introduce biases present in the data. They may inadvertently generate biased or discriminatory responses, reflecting the biases prevalent in the training data.
+
+2. Hallucination: The model sometimes generates responses or outputs that may sound plausible but are factually incorrect or unsupported. This can occur when the model relies heavily on the statistical patterns it has learned from the training data, even if those patterns do not align with real-world knowledge or facts.
+
+3. Repetition: The model may exhibit repetition in their generated responses. This repetition can manifest in various ways, such as repeating certain phrases or sentences, generating redundant information, or producing repetitive structures in the generated text. This issue can make the output of LLMs less diverse and less engaging for users.
+
+## 7. License
+
+JumboAI LLM series (including Base and Chat) supports commercial use.
+
+## 8. Citation
+
+```
+@misc{JumboAI-llm,
+  author = {JumboAI AI},
+  title = {JumboAI LLM: Let there be answers},
+  year = {2023},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/JumboAI-ai/JumboAI-LLM}},
+}
+```
+
+## 9. Contact
+
+If you have any questions, please raise an issue or contact us at JumboAI.xyz.
