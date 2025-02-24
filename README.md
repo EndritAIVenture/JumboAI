@@ -1,7 +1,7 @@
 # TEAM INTRO TO CRYPTO 
 The team was first introduced to crypto through Endrit, Endrit has been critical in the development of our product and will be providing videos showcasing our usecase to his full youtube audience. 
 
-# CA: 
+# CA: 6nNRipndiXg1yYNKTFhFS86XpYsALDxqeybbNRw3pump
 
 # 1.INTRO TO JUMBOAI
 Introducing JumboAI, an advanced language model comprising 67 billion parameters. It has been trained from scratch on a vast dataset of 2 trillion tokens in both English and Chinese. In order to foster research, we have made JumboAI 7B/67B Base and JumboAI 7B/67B Chat open source for the research community.
